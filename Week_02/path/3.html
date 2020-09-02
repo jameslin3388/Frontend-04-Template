@@ -1,0 +1,103 @@
+<style>
+  .cell {
+    display: inline-block;
+    line-height: 7px;
+    width: 6px;
+    height: 6px;
+    background-color: gray;
+    border-bottom: solid 1px white;
+    border-right: solid 1px white;
+    vertical-align: top;
+  }
+
+  #container {
+    width: 701px;
+  }
+</style>
+
+<div id="container"></div>
+<button onclick="localStorage['map'] = JSON.stringify(map)">save</button>
+
+<script>
+  let map = localStorage['map']
+    ? JSON.parse(localStorage['map'])
+    : Array(10000).fill(0);
+  let container = document.getElementById('container');
+  // y 是纵向，100 行
+  for (let y = 0; y < 100; y++) {
+    // x 是横向，100 列
+    for (let x = 0; x < 100; x++) {
+      let cell = document.createElement('div');
+      cell.classList.add('cell');
+
+      if (map[100 * y + x] == 1) {
+        cell.style.backgroundColor = 'black';
+      }
+
+      cell.addEventListener('mousemove', () => {
+        if (mousedown) {
+          // 去掉墙壁
+          if (clear) {
+            cell.style.backgroundColor = '';
+            map[100 * y + x] = 0;
+          }
+          // 变成墙壁
+          else {
+            cell.style.backgroundColor = 'black';
+            map[100 * y + x] = 1;
+          }
+        }
+      });
+
+      container.appendChild(cell);
+    }
+  }
+
+  let mousedown = false;
+  let clear = false;
+  document.addEventListener('mousedown', (e) => {
+    mousedown = true;
+    // 判断是否按右键
+    clear = e.which === 3;
+  });
+  document.addEventListener('mouseup', () => (mousedown = false));
+  // 通过 preventDefault 将右键点击弹出菜单行为取消掉
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  function sleep(t) {
+    return new Promise(function (resolve) {
+      setTimeout(resolve, t);
+    });
+  }
+
+  async function path(map, start, end) {
+    var queue = [start];
+
+    async function insert(y, x) {
+      if (y < 0 || y >= 100 || x < 0 || x >= 100) {
+        return;
+      }
+      if (map[y * 100 + x]) {
+        return;
+      }
+
+      await sleep(5);
+
+      container.children[y * 100 + x].style.backgroundColor = 'lightgreen';
+      map[y * 100 + x] = 2;
+      queue.push([y, x]);
+    }
+
+    while (queue.length) {
+      let [y, x] = queue.shift();
+      if (y === end[0] && x === end[1]) {
+        return true;
+      }
+
+      await insert(y - 1, x);
+      await insert(y + 1, x);
+      await insert(y, x - 1);
+      await insert(y, x + 1);
+    }
+  }
+</script>

@@ -1,0 +1,107 @@
+<script>
+  var regexp = /([0-9\.]+)|([ \t]+)|([\r\n]+)|(\*)|(\/)|(\+)|(\-)/g;
+
+  var dictionary = [
+    'Number',
+    'Whitespace',
+    'LineTerminator',
+    '*',
+    '/',
+    '+',
+    '-',
+  ];
+
+  function* tokenize(source) {
+    var result = null;
+    var lastIndex = 0;
+
+    while (true) {
+      lastIndex = regexp.lastIndex;
+      result = regexp.exec(source);
+
+      // 如果匹配不到，退出
+      if (!result) break;
+
+      // 如果匹配出来的长度和前进的长度不一样，退出
+      // 说明中间可能有不认识的格式或字符
+      if (regexp.lastIndex - lastIndex > result[0].length) break;
+
+      let token = {
+        type: null,
+        value: null,
+      };
+
+      // result 的 0 位置是全部匹配的字符串
+      // 1 到 n 为括号的分组捕获
+      for (let i = 1; i <= dictionary.length; i++) {
+        if (result[i]) token.type = dictionary[i - 1];
+      }
+      token.value = result[0];
+      yield token;
+    }
+
+    yield {
+      type: 'EOF',
+    };
+  }
+
+  let source = [];
+  for (let token of tokenize('10 * 25 / 2')) {
+    if (token.type !== 'Whitespace' && token.type !== 'LineTerminator')
+      source.push(token);
+  }
+
+  function Expression(tokens) {}
+
+  function AdditiveExpression(source) {}
+
+  function MultiplicativeExpression(source) {
+    if (source[0].type === 'Number') {
+      let node = {
+        type: 'MultiplicativeExpression',
+        children: [source[0]],
+      };
+      source[0] = node;
+      return MultiplicativeExpression(source);
+    }
+    if (
+      source[0].type === 'MultiplicativeExpression' &&
+      source[1] &&
+      source[1].type === '*'
+    ) {
+      let node = {
+        type: 'MultiplicativeExpression',
+        operator: '*',
+        children: [],
+      };
+      node.children.push(source.shift());
+      node.children.push(source.shift());
+      node.children.push(source.shift());
+
+      source.unshift(node);
+      return MultiplicativeExpression(source);
+    }
+    if (
+      source[0].type === 'MultiplicativeExpression' &&
+      source[1] &&
+      source[1].type === '/'
+    ) {
+      let node = {
+        type: 'MultiplicativeExpression',
+        operator: '/',
+        children: [],
+      };
+      node.children.push(source.shift());
+      node.children.push(source.shift());
+      node.children.push(source.shift());
+
+      source.unshift(node);
+      return MultiplicativeExpression(source);
+    }
+    if (source[0].type === 'MultiplicativeExpression') return source[0];
+
+    return MultiplicativeExpression(source);
+  }
+
+  console.log(MultiplicativeExpression(source));
+</script>

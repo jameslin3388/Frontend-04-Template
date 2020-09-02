@@ -1,0 +1,223 @@
+<style>
+  .cell {
+    display: inline-block;
+    line-height: 7px;
+    width: 6px;
+    height: 6px;
+    background-color: gray;
+    border-bottom: solid 1px white;
+    border-right: solid 1px white;
+    vertical-align: top;
+  }
+
+  #container {
+    width: 701px;
+  }
+</style>
+
+<div id="container"></div>
+<button onclick="localStorage['map'] = JSON.stringify(map)">save</button>
+
+<script>
+  class Sorted {
+    constructor(data, compare) {
+      this.data = data;
+      this.compare = compare;
+    }
+
+    take() {
+      if (!this.data.length) return;
+      let min = this.data[0];
+      let minIndex = 0;
+
+      for (let i = 1; i < this.data.length; i++) {
+        if (this.compare(this.data[i], min) < 0) {
+          min = this.data[i];
+          minIndex = i;
+        }
+      }
+
+      // 将 data 尾的值移到 minIndex 位置
+      this.data[minIndex] = this.data[this.data.length - 1];
+      this.data.pop();
+      return min;
+    }
+
+    insert(v) {
+      this.data.push(v);
+    }
+
+    get length() {
+      return this.data.length;
+    }
+  }
+
+  class BinaryHeap {
+    constructor(data, compare) {
+      this.data = data;
+      this.compare = compare;
+    }
+
+    take() {
+      if (!this.data.length) return;
+      // this.data[0] 保持为最小的
+      let min = this.data[0];
+      let i = 0;
+
+      // 当移去 data[0] 后，需保障最小的节点仍在 0 的位置
+      while (i < this.data.length) {
+        // 如果左子节点不存在
+        if (i * 2 + 1 >= this.data.length) break;
+
+        // 如果右子节点不存在，左子节点往上移动
+        if (i * 2 + 2 >= this.data.length) {
+          this.data[i] = this.data[i * 2 + 1];
+          i = i * 2 + 1;
+          break;
+        }
+
+        // 左右子节点都存在，根据 compare 选择更小的一个节点
+        if (this.compare(this.data[i * 2 + 1], this.data[i * 2 + 2]) < 0) {
+          this.data[i] = this.data[i * 2 + 1];
+          i = i * 2 + 1;
+        } else {
+          this.data[i] = this.data[i * 2 + 2];
+          i = i * 2 + 2;
+        }
+      }
+
+      if (i < this.data.length - 1) {
+        // 若 i 不是在 data 的末尾
+        // 将末尾的值移到 i 的位置
+        this.insertAt(i, this.data.pop());
+      } else {
+        this.data.pop();
+      }
+
+      return min;
+    }
+
+    insertAt(i, v) {
+      this.data[i] = v;
+
+      // 不断与父节点进行对比，如果比父节点小则交换
+      let parent = Math.floor((i - 1) / 2);
+      while (i > 0 && this.compare(v, this.data[parent]) < 0) {
+        this.data[i] = this.data[parent];
+        this.data[parent] = v;
+        i = parent;
+        parent = Math.floor((i - 1) / 2);
+      }
+    }
+
+    insert(v) {
+      this.insertAt(this.data.length, v);
+    }
+
+    get length() {
+      return this.data.length;
+    }
+  }
+
+  let map = localStorage['map']
+    ? JSON.parse(localStorage['map'])
+    : Array(10000).fill(0);
+  let container = document.getElementById('container');
+  // y 是纵向，100 行
+  for (let y = 0; y < 100; y++) {
+    // x 是横向，100 列
+    for (let x = 0; x < 100; x++) {
+      let cell = document.createElement('div');
+      cell.classList.add('cell');
+
+      if (map[100 * y + x] == 1) {
+        cell.style.backgroundColor = 'black';
+      }
+
+      cell.addEventListener('mousemove', () => {
+        if (mousedown) {
+          // 去掉墙壁
+          if (clear) {
+            cell.style.backgroundColor = '';
+            map[100 * y + x] = 0;
+          }
+          // 变成墙壁
+          else {
+            cell.style.backgroundColor = 'black';
+            map[100 * y + x] = 1;
+          }
+        }
+      });
+
+      container.appendChild(cell);
+    }
+  }
+
+  let mousedown = false;
+  let clear = false;
+  document.addEventListener('mousedown', (e) => {
+    mousedown = true;
+    // 判断是否按右键
+    clear = e.which === 3;
+  });
+  document.addEventListener('mouseup', () => (mousedown = false));
+  // 通过 preventDefault 将右键点击弹出菜单行为取消掉
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  function sleep(t) {
+    return new Promise(function (resolve) {
+      setTimeout(resolve, t);
+    });
+  }
+
+  async function findPath(map, start, end) {
+    let table = Object.create(map);
+    // var queue = new Sorted([start], (a, b) => distance(a) - distance(b));
+    var queue = new BinaryHeap([start], (a, b) => distance(a) - distance(b));
+
+    async function insert(y, x, pre) {
+      if (y < 0 || y >= 100 || x < 0 || x >= 100) return;
+
+      if (table[y * 100 + x]) return;
+
+      container.children[y * 100 + x].style.backgroundColor = 'lightgreen';
+      table[y * 100 + x] = pre;
+      queue.insert([y, x]);
+    }
+
+    function distance(point) {
+      return (point[0] - end[0]) ** 2 + (point[1] - end[1]) ** 2;
+    }
+
+    while (queue.length) {
+      let [y, x] = queue.take();
+      console.log(y, x);
+      if (y === end[0] && x === end[1]) {
+        let path = [];
+
+        while (y != start[0] || x != start[1]) {
+          path.push(table[y * 100 + x]);
+          [y, x] = table[y * 100 + x];
+          await sleep(30);
+          container.children[y * 100 + x].style.backgroundColor = 'purple';
+        }
+
+        console.log(path);
+        return path;
+      }
+
+      // 纵向和横向
+      await insert(y - 1, x, [y, x]);
+      await insert(y + 1, x, [y, x]);
+      await insert(y, x - 1, [y, x]);
+      await insert(y, x + 1, [y, x]);
+
+      // 斜向
+      await insert(y - 1, x - 1, [y, x]);
+      await insert(y - 1, x + 1, [y, x]);
+      await insert(y + 1, x - 1, [y, x]);
+      await insert(y + 1, x + 1, [y, x]);
+    }
+    return null;
+  }
+</script>
