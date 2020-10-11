@@ -1,5 +1,5 @@
 const net = require('net');
-const { parse } = require('path');
+const parser = require('./parser.js');
 
 class Request {
   constructor(opt) {
@@ -59,11 +59,10 @@ class Request {
 
   toString() {
     return `${this.method} ${this.path} HTTP/1.1\r
-    ${Object.keys(this.headers)
-      .map((key) => `${key}: ${this.headers[key]}`)
-      .join('\r\n')}\r\r
-    ${this.bodyText}
-    `;
+${Object.keys(this.headers)
+  .map((key) => `${key}: ${this.headers[key]}`)
+  .join('\r\n')}\r\r
+${this.bodyText}`;
   }
 }
 
@@ -216,5 +215,6 @@ void (async function () {
   });
 
   let res = await req.send();
-  console.log('result ====> ', res);
+
+  let dom = parser.parseHTML(res.body);
 })();
